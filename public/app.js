@@ -24,6 +24,6 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight' || e.key === 'd') direction = 'RIGHT';
 
   if (direction) {
-    ws.send(JSON.stringify({ type: 'move', direction }));
+    ws.send(JSON.stringify({ type: 'move', payload: { direction: direction } }));
   }
 })

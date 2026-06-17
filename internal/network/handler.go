@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/bradcj/pvp-snake-game/internal/game"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -22,24 +23,22 @@ func HandleWebSocket(hub *game.CentralHub, w http.ResponseWriter, r *http.Reques
 		fmt.Printf("Error upgrading to WebSocket: %v\n", err)
 		return
 	}
-	clientID := conn.RemoteAddr().String()
+	client := &game.Client{
+		ID:       uuid.New().String(),
+		Conn:     conn,
+		SendChan: make(chan []byte, 256),
+	}
+
 	defer func() {
-		log.Printf("Client %s disconnected\n", clientID)
-		hub.Unregister <- clientID // ensure client is unregistered on disconnect
+		log.Printf("Client %s disconnected\n", client.ID)
+		hub.Unregister <- *client // ensure client is unregistered on disconnect
 		conn.Close()
 	}()
 
-	log.Printf("Client %s connected\n", clientID)
-	hub.Register <- clientID // register client in the hub
+	log.Printf("Client %s connected\n", client.ID)
+	hub.Register <- *client // register client in the hub
 
-	for {
-		messageType, payload, err := conn.ReadMessage()
-		if err != nil {
-			log.Printf("Client %s disconnected or error encountered while reading message: %v\n", clientID, err)
-			break
-		}
-
-		log.Printf("Client %s sent message: %s of type %d\n", clientID, payload, messageType)
-		hub.IncomingActions <- game.Action{ClientID: clientID, Data: string(payload)}
-	}
+	// seperate goroutines for reading and writing to the WebSocket connection
+	go WritePump(client, hub)
+	ReadPump(client, hub) // this will block until the client disconnects or an error occurs
 }
