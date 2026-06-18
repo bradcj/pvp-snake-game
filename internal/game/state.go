@@ -137,10 +137,27 @@ func (gs *GameState) UpdateSnakeDirection(clientID string, newDirection Position
 func (gs *GameState) SpawnRandomFood() {
 	foodToSpawn := len(gs.Snakes)
 	for i := 0; i < foodToSpawn; i++ {
-		gs.AddFood(Position{
-			X: rand.Intn(gs.Width),
-			Y: rand.Intn(gs.Height),
-		})
+		foodSpawned := false
+		for !foodSpawned {
+			foodPos := &Position{
+				X: rand.Intn(gs.Width),
+				Y: rand.Intn(gs.Height),
+			}
+			for _, snake := range gs.Snakes {
+				for _, segment := range snake.Body {
+					if segment == *foodPos {
+						continue
+					}
+				}
+			}
+			for _, food := range gs.Food {
+				if food == *foodPos {
+					continue
+				}
+			}
+			gs.AddFood(*foodPos)
+			foodSpawned = true
+		}
 	}
 }
 
