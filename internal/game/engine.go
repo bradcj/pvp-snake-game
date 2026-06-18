@@ -100,7 +100,7 @@ func (hub *CentralHub) BroadcastState() {
 
 func (hub *CentralHub) Run() {
 	// ticker that fires at a steady interval (e.g., 60 times per second)
-	ticker := time.NewTicker(500 * time.Millisecond) // adjust as needed for game speed
+	ticker := time.NewTicker(200 * time.Millisecond) // adjust as needed for game speed
 	defer ticker.Stop()
 
 	for {

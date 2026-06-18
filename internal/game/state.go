@@ -24,13 +24,14 @@ type GameState struct {
 	Height int               `json:"height"`
 }
 
-const DEFAULT_BOARD_WIDTH = 20
-const DEFAULT_BOARD_HEIGHT = 20
+const DEFAULT_BOARD_WIDTH = 40
+const DEFAULT_BOARD_HEIGHT = 30
 
 func NewGameState() *GameState {
 	return &GameState{
 		Snakes: make(map[string]*Snake),
-		Food:   []Position{},
+		// hardcode some initial food for now
+		Food:   []Position{{X: 10, Y: 10}, {X: 20, Y: 20}, {X: 30, Y: 30}},
 		Width:  DEFAULT_BOARD_WIDTH,
 		Height: DEFAULT_BOARD_HEIGHT,
 	}
