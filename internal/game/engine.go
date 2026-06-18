@@ -31,17 +31,22 @@ type CentralHub struct {
 	Register        chan Client
 	Unregister      chan Client
 	IncomingActions chan Action
-	Clients         map[string]*Client // map Client ID to Client struct
-	State           *GameState
+
+	Clients           map[string]*Client // map Client ID to Client struct
+	State             *GameState
+	LastFoodSpawnTime time.Time
+	FoodSpawnInterval time.Duration
 }
 
 func NewHub() *CentralHub {
 	return &CentralHub{
-		Register:        make(chan Client),
-		Unregister:      make(chan Client),
-		IncomingActions: make(chan Action),
-		Clients:         make(map[string]*Client),
-		State:           NewGameState(),
+		Register:          make(chan Client),
+		Unregister:        make(chan Client),
+		IncomingActions:   make(chan Action),
+		Clients:           make(map[string]*Client),
+		State:             NewGameState(),
+		LastFoodSpawnTime: time.Now(),
+		FoodSpawnInterval: 5 * time.Second,
 	}
 }
 
@@ -134,8 +139,12 @@ func (hub *CentralHub) Run() {
 			}
 
 		case <-ticker.C:
-			log.Println("Game tick - simulating world update...")
+			log.Println("Game tick - updating game state...")
 			hub.State.UpdateGameState()
+			if time.Since(hub.LastFoodSpawnTime) > hub.FoodSpawnInterval {
+				hub.State.SpawnRandomFood()
+				hub.LastFoodSpawnTime = time.Now()
+			}
 			hub.BroadcastState()
 		}
 	}

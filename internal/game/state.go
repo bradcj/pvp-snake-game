@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type Position struct {
@@ -130,6 +131,17 @@ func (gs *GameState) UpdateSnakeDirection(clientID string, newDirection Position
 		return fmt.Errorf("snake for client %s not found", clientID)
 	}
 	return nil
+}
+
+// spawn food, in proportion with number of snakes, in random locations
+func (gs *GameState) SpawnRandomFood() {
+	foodToSpawn := len(gs.Snakes)
+	for i := 0; i < foodToSpawn; i++ {
+		gs.AddFood(Position{
+			X: rand.Intn(gs.Width),
+			Y: rand.Intn(gs.Height),
+		})
+	}
 }
 
 func (gs *GameState) AddSnake(id string) {
