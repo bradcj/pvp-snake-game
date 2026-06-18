@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 type Position struct {
@@ -11,11 +12,13 @@ type Position struct {
 }
 
 type Snake struct {
-	ID        string     `json:"id"`
-	Body      []Position `json:"body"`      // array of positions representing the snake's body segments, with the head at index 0
-	Direction Position   `json:"direction"` // e.g. (1,0) for right, (-1,0) for left, (0,1) for down, (0,-1) for up
-	Score     int        `json:"score"`
-	IsDead    bool       `json:"isDead"`
+	ID           string        `json:"id"`
+	Body         []Position    `json:"body"`      // array of positions representing the snake's body segments, with the head at index 0
+	Direction    Position      `json:"direction"` // e.g. (1,0) for right, (-1,0) for left, (0,1) for down, (0,-1) for up
+	Score        int           `json:"score"`
+	IsDead       bool          `json:"isDead"`
+	LastMoveTime time.Time     `json:"lastMoveTime"` // last time the snake moved
+	Speed        time.Duration `json:"speed"`        // in milliseconds
 }
 
 type GameState struct {
@@ -27,6 +30,7 @@ type GameState struct {
 
 const DEFAULT_BOARD_WIDTH = 40
 const DEFAULT_BOARD_HEIGHT = 30
+const DEFAULT_SNAKE_SPEED = 200 * time.Millisecond
 
 func NewGameState() *GameState {
 	return &GameState{
@@ -39,6 +43,10 @@ func NewGameState() *GameState {
 }
 
 func (gs *GameState) UpdateSnakeState(snake *Snake) bool {
+	if time.Since(snake.LastMoveTime) < snake.Speed {
+		return false
+	}
+	snake.LastMoveTime = time.Now()
 	// update position based on direction
 	oldHead := snake.Body[0]
 	newHead := Position{
@@ -133,11 +141,18 @@ func (gs *GameState) UpdateSnakeDirection(clientID string, newDirection Position
 	return nil
 }
 
-// spawn food, in proportion with number of snakes, in random locations
+// Spawns food in random locations in proportion to number of snakes
 func (gs *GameState) SpawnRandomFood() {
-	foodToSpawn := len(gs.Snakes)
+	aliveSnakes := 0
+	for _, snake := range gs.Snakes {
+		if !snake.IsDead {
+			aliveSnakes++
+		}
+	}
+	foodToSpawn := aliveSnakes
 	for i := 0; i < foodToSpawn; i++ {
 		foodSpawned := false
+		// spawn food on unoccupied cells
 		for !foodSpawned {
 			foodPos := &Position{
 				X: rand.Intn(gs.Width),
@@ -163,11 +178,13 @@ func (gs *GameState) SpawnRandomFood() {
 
 func (gs *GameState) AddSnake(id string) {
 	gs.Snakes[id] = &Snake{
-		ID:        id,
-		Body:      []Position{{X: gs.Width / 2, Y: gs.Height / 2}},
-		Direction: Position{X: 1, Y: 0}, // default direction to the right
-		Score:     0,
-		IsDead:    false,
+		ID:           id,
+		Body:         []Position{{X: gs.Width / 2, Y: gs.Height / 2}},
+		Direction:    Position{X: 1, Y: 0}, // default direction to the right
+		Score:        0,
+		IsDead:       false,
+		Speed:        DEFAULT_SNAKE_SPEED,
+		LastMoveTime: time.Now(),
 	}
 }
 

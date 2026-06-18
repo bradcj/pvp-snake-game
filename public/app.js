@@ -45,6 +45,7 @@ ws.onmessage = (event) => {
     });
 };
 
+let lastDirection = null
 // handle keyboard input and send to server
 window.addEventListener('keydown', (e) => {
     let direction = null;
@@ -53,7 +54,8 @@ window.addEventListener('keydown', (e) => {
     else if (e.key === 'ArrowLeft' || e.key === 'a') direction = 'LEFT';
     else if (e.key === 'ArrowRight' || e.key === 'd') direction = 'RIGHT';
 
-    if (direction) {
+    if (direction && lastDirection !== direction) {
         ws.send(JSON.stringify({ type: 'move', payload: { direction: direction } }));
+        lastDirection = direction;
     }
 })

@@ -103,9 +103,11 @@ func (hub *CentralHub) BroadcastState() {
 	}
 }
 
+const TICK_RATE_HZ = 20
+
 func (hub *CentralHub) Run() {
-	// ticker that fires at a steady interval (e.g., 60 times per second)
-	ticker := time.NewTicker(200 * time.Millisecond) // adjust as needed for game speed
+	// ticker that fires at a steady interval
+	ticker := time.NewTicker(time.Second / TICK_RATE_HZ)
 	defer ticker.Stop()
 
 	for {
