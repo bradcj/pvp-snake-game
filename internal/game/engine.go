@@ -103,7 +103,7 @@ func (hub *CentralHub) BroadcastState() {
 	}
 }
 
-const TICK_RATE_HZ = 20
+const TICK_RATE_HZ = 10
 
 func (hub *CentralHub) Run() {
 	// ticker that fires at a steady interval
@@ -130,17 +130,20 @@ func (hub *CentralHub) Run() {
 					log.Printf("Error parsing move action from client %s: %v\n", action.ClientID, err)
 					continue
 				}
-				err = hub.State.UpdateSnakeDirection(moveAction.ClientID, moveAction.Direction)
+				err = hub.State.QueueSnakeMove(moveAction.ClientID, moveAction.Direction)
 				if err != nil {
 					log.Printf("Error updating snake direction for client %s: %v\n", moveAction.ClientID, err)
 				} else {
-					log.Printf("Updated direction for client %s to %v\n", moveAction.ClientID, moveAction.Direction)
+					log.Printf("Queued snake move for client %s to %v\n", moveAction.ClientID, moveAction.Direction)
 				}
 			} else {
 				log.Printf("Unknown action type %s from client %s\n", action.Type, action.ClientID)
 			}
 
 		case <-ticker.C:
+			if len(hub.Clients) == 0 {
+				continue
+			}
 			log.Println("Game tick - updating game state...")
 			hub.State.UpdateGameState()
 			if time.Since(hub.LastFoodSpawnTime) > hub.FoodSpawnInterval {

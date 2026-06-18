@@ -11,15 +11,22 @@ type Position struct {
 	Y int `json:"y"`
 }
 
+const MOVE_INPUT_QUEUE_SIZE = 2
+const DEFAULT_SNAKE_SPEED = 100 * time.Millisecond
+
 type Snake struct {
-	ID           string        `json:"id"`
-	Body         []Position    `json:"body"`      // array of positions representing the snake's body segments, with the head at index 0
-	Direction    Position      `json:"direction"` // e.g. (1,0) for right, (-1,0) for left, (0,1) for down, (0,-1) for up
-	Score        int           `json:"score"`
-	IsDead       bool          `json:"isDead"`
-	LastMoveTime time.Time     `json:"lastMoveTime"` // last time the snake moved
-	Speed        time.Duration `json:"speed"`        // in milliseconds
+	ID               string        `json:"id"`
+	Body             []Position    `json:"body"`           // array of positions representing the snake's body segments, with the head at index 0
+	CurrentDirection Position      `json:"direction"`      // e.g. (1,0) for right, (-1,0) for left, (0,1) for down, (0,-1) for up
+	MoveInputQueue   []Position    `json:"moveInputQueue"` // queue of move inputs for the snake
+	Score            int           `json:"score"`
+	IsDead           bool          `json:"isDead"`
+	LastMoveTime     time.Time     `json:"lastMoveTime"` // last time the snake moved
+	Speed            time.Duration `json:"speed"`        // in milliseconds
 }
+
+const DEFAULT_BOARD_WIDTH = 40
+const DEFAULT_BOARD_HEIGHT = 30
 
 type GameState struct {
 	Snakes map[string]*Snake `json:"snakes"` // mapping from snake ID to Snake struct
@@ -27,10 +34,6 @@ type GameState struct {
 	Width  int               `json:"width"`
 	Height int               `json:"height"`
 }
-
-const DEFAULT_BOARD_WIDTH = 40
-const DEFAULT_BOARD_HEIGHT = 30
-const DEFAULT_SNAKE_SPEED = 200 * time.Millisecond
 
 func NewGameState() *GameState {
 	return &GameState{
@@ -42,16 +45,49 @@ func NewGameState() *GameState {
 	}
 }
 
+func (gs *GameState) QueueSnakeMove(clientID string, nextMove Position) error {
+	snake, exists := gs.Snakes[clientID]
+	if !exists {
+		return fmt.Errorf("snake for client %s not found", clientID)
+	}
+	// validate that new direction is not same or opposite as current direction
+	prevMove := snake.CurrentDirection
+	if len(snake.MoveInputQueue) > 0 {
+		prevMove = snake.MoveInputQueue[len(snake.MoveInputQueue)-1]
+	}
+	sameMove := prevMove == nextMove
+	oppositeMove := prevMove.X+nextMove.X == 0 && prevMove.Y+nextMove.Y == 0
+	if !sameMove && !oppositeMove {
+		if len(snake.MoveInputQueue) >= MOVE_INPUT_QUEUE_SIZE {
+			snake.MoveInputQueue = snake.MoveInputQueue[1:] // pop first move
+		}
+		snake.MoveInputQueue = append(snake.MoveInputQueue, nextMove)
+	}
+	return nil
+}
+
+// Updates the snake's direction based on the move input queue
+func UpdateSnakeDirection(snake *Snake) {
+	if len(snake.MoveInputQueue) > 0 {
+		nextMove := snake.MoveInputQueue[0]
+		snake.MoveInputQueue = snake.MoveInputQueue[1:] // pop first move
+		snake.CurrentDirection = nextMove
+	}
+}
+
 func (gs *GameState) UpdateSnakeState(snake *Snake) bool {
 	if time.Since(snake.LastMoveTime) < snake.Speed {
 		return false
 	}
 	snake.LastMoveTime = time.Now()
+
+	UpdateSnakeDirection(snake)
+
 	// update position based on direction
 	oldHead := snake.Body[0]
 	newHead := Position{
-		X: oldHead.X + snake.Direction.X,
-		Y: oldHead.Y + snake.Direction.Y,
+		X: oldHead.X + snake.CurrentDirection.X,
+		Y: oldHead.Y + snake.CurrentDirection.Y,
 	}
 
 	if len(snake.Body) > 1 && newHead.X == snake.Body[1].X && newHead.Y == snake.Body[1].Y {
@@ -125,22 +161,6 @@ func (gs *GameState) UpdateGameState() {
 	}
 }
 
-// update the snake's direction in the game state
-// validate that the new direction is not directly opposite to the current direction
-func (gs *GameState) UpdateSnakeDirection(clientID string, newDirection Position) error {
-	if snake, exists := gs.Snakes[clientID]; exists {
-		// validate that new direction is not directly opposite to current direction
-		if (newDirection.X == -snake.Direction.X && newDirection.Y == 0) ||
-			(newDirection.Y == -snake.Direction.Y && newDirection.X == 0) {
-			return fmt.Errorf("invalid direction change for client %s: cannot reverse direction", clientID)
-		}
-		snake.Direction = newDirection
-	} else {
-		return fmt.Errorf("snake for client %s not found", clientID)
-	}
-	return nil
-}
-
 // Spawns food in random locations in proportion to number of snakes
 func (gs *GameState) SpawnRandomFood() {
 	aliveSnakes := 0
@@ -178,13 +198,13 @@ func (gs *GameState) SpawnRandomFood() {
 
 func (gs *GameState) AddSnake(id string) {
 	gs.Snakes[id] = &Snake{
-		ID:           id,
-		Body:         []Position{{X: gs.Width / 2, Y: gs.Height / 2}},
-		Direction:    Position{X: 1, Y: 0}, // default direction to the right
-		Score:        0,
-		IsDead:       false,
-		Speed:        DEFAULT_SNAKE_SPEED,
-		LastMoveTime: time.Now(),
+		ID:               id,
+		Body:             []Position{{X: gs.Width / 2, Y: gs.Height / 2}},
+		CurrentDirection: Position{X: 1, Y: 0}, // default direction to the right
+		Score:            0,
+		IsDead:           false,
+		Speed:            DEFAULT_SNAKE_SPEED,
+		LastMoveTime:     time.Now(),
 	}
 }
 
